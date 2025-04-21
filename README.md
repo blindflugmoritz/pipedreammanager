@@ -73,6 +73,15 @@ pdmanager create-workflow --project proj_abc123 --name "My API Workflow"
 
 # Create with description
 pdmanager create-workflow --name "My API Workflow" --description "Handles API requests"
+
+# Create with HTTP webhook trigger
+pdmanager create-workflow --name "Webhook API" --trigger http
+
+# Create with custom HTTP path
+pdmanager create-workflow --name "Custom Path API" --trigger http --trigger-path my-special-endpoint
+
+# Create with schedule trigger
+pdmanager create-workflow --name "Daily Report" --trigger schedule --schedule "0 9 * * *"
 ```
 
 ### Open a Pipedream Project
@@ -129,7 +138,8 @@ pdmanager quick-test
 
 ## Future Features
 
-- Triggers for workflows (HTTP, Schedule, etc.)
+- Support for more trigger types (Email, Custom Events, etc.)
 - Pull workflow configurations for local development
 - Push local changes back to Pipedream
 - Deploy and manage workflows
+- Add actions to workflows via API

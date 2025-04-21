@@ -2,7 +2,13 @@ const fs = require('fs').promises;
 const path = require('path');
 const ini = require('ini');
 const https = require('https');
+const crypto = require('crypto');
 require('dotenv').config();
+
+// Helper function to generate a random path for HTTP webhooks
+function generateRandomPath() {
+  return crypto.randomBytes(8).toString('hex');
+}
 
 async function ensureDir(dirPath) {
   try {
@@ -140,6 +146,52 @@ async function createWorkflow(options) {
       workflowData.settings.description = options.description;
     }
     
+    // Check for trigger configuration
+    // First check options, then fallback to environment variables
+    const triggerType = options.trigger || process.env.DEFAULT_TRIGGER_TYPE;
+    
+    if (triggerType) {
+      console.log(`Configuring trigger: ${triggerType}`);
+      
+      // Initialize components array if not exists
+      if (!workflowData.components) {
+        workflowData.components = [];
+      }
+      
+      if (triggerType === 'http') {
+        // HTTP webhook trigger
+        const triggerPath = options.triggerPath || generateRandomPath();
+        console.log(`Using HTTP path: ${triggerPath}`);
+        
+        workflowData.components.push({
+          type: 'trigger',
+          app: 'http',
+          options: {
+            path: triggerPath,
+            method: 'any'
+          }
+        });
+      } else if (triggerType === 'schedule') {
+        // Schedule/cron trigger
+        // First check options, then env var, then default to daily at midnight
+        let cronExpression = options.schedule || process.env.DEFAULT_SCHEDULE || '0 0 * * *';
+        // Remove quotes if present in the environment variable
+        cronExpression = cronExpression.replace(/"/g, '');
+        
+        console.log(`Using schedule: ${cronExpression}`);
+        
+        workflowData.components.push({
+          type: 'trigger',
+          app: 'schedule',
+          options: {
+            cron: cronExpression
+          }
+        });
+      } else {
+        console.log(`Trigger type '${triggerType}' not yet implemented. Creating workflow without trigger.`);
+      }
+    }
+    
     // Create the workflow via API
     console.log('Creating workflow via API...');
     const newWorkflow = await makeApiRequest('POST', '/workflows', apiKey, workflowData);
@@ -170,6 +222,26 @@ async function createWorkflow(options) {
       description: options.description || ''
     };
     
+    // Add trigger info to metadata
+    if (triggerType) {
+      metadata.trigger = {
+        type: triggerType
+      };
+      
+      if (triggerType === 'http' && options.triggerPath) {
+        metadata.trigger.path = options.triggerPath;
+        metadata.webhook_url = `https://pipedream.com/webhooks/${workflowId}/${options.triggerPath}`;
+      } else if (triggerType === 'http') {
+        const path = generateRandomPath();
+        metadata.trigger.path = path;
+        metadata.webhook_url = `https://pipedream.com/webhooks/${workflowId}/${path}`;
+      } else if (triggerType === 'schedule') {
+        let schedule = options.schedule || process.env.DEFAULT_SCHEDULE || '0 0 * * *';
+        schedule = schedule.replace(/"/g, '');
+        metadata.trigger.schedule = schedule;
+      }
+    }
+    
     await fs.writeFile(
       path.join(workflowDir, 'workflow.json'),
       JSON.stringify(metadata, null, 2)
@@ -189,9 +261,40 @@ async function createWorkflow(options) {
     console.log(`   - Workflow ID: ${workflowId}`);
     console.log(`   - URL: ${workflowUrl}`);
     console.log(`   - Local directory: ${workflowDir}`);
+    
+    // Display trigger information if applicable
+    if (triggerType) {
+      console.log(`   - Trigger type: ${triggerType}`);
+      
+      if (triggerType === 'http') {
+        const triggerPath = options.triggerPath || metadata.trigger?.path;
+        if (triggerPath) {
+          const webhookUrl = `https://pipedream.com/webhooks/${workflowId}/${triggerPath}`;
+          console.log(`   - Webhook URL: ${webhookUrl}`);
+        }
+      } else if (triggerType === 'schedule') {
+        let schedule = options.schedule || process.env.DEFAULT_SCHEDULE || '0 0 * * *';
+        schedule = schedule.replace(/"/g, '');
+        console.log(`   - Schedule: ${schedule}`);
+      }
+    }
+    
     console.log('-'.repeat(50) + '\n');
     
-    return { workflowId, workflowName, workflowUrl };
+    return { 
+      workflowId, 
+      workflowName, 
+      workflowUrl,
+      trigger: triggerType ? {
+        type: triggerType,
+        ...(triggerType === 'http' ? { 
+          path: options.triggerPath || metadata.trigger?.path 
+        } : {}),
+        ...(triggerType === 'schedule' ? { 
+          schedule: options.schedule || process.env.DEFAULT_SCHEDULE?.replace(/"/g, '') || '0 0 * * *' 
+        } : {})
+      } : null
+    };
   } catch (error) {
     console.error('Error creating workflow:', error.message);
     process.exit(1);

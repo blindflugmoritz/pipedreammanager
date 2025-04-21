@@ -90,6 +90,9 @@ program
   .option('-t, --template <id>', 'Template ID to use (optional)')
   .option('-d, --description <desc>', 'Workflow description (optional)')
   .option('-k, --apiKey <key>', 'Pipedream API key (optional if in .env)')
+  .option('--trigger <type>', 'Trigger type (http, schedule, etc.)')
+  .option('--trigger-path <path>', 'Custom path for HTTP trigger (optional)')
+  .option('--schedule <cron>', 'Cron expression for schedule trigger (optional)')
   .action(createWorkflow);
 
 program.parse(process.argv);
