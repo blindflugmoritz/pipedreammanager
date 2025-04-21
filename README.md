@@ -84,6 +84,22 @@ pdmanager create-workflow --name "Custom Path API" --trigger http --trigger-path
 pdmanager create-workflow --name "Daily Report" --trigger schedule --schedule "0 9 * * *"
 ```
 
+### List Triggers
+
+List all triggers for a workflow:
+
+```bash
+# List triggers for a specific workflow
+pdmanager list-triggers --workflow wf_abc123
+
+# List all workflows in a project, then choose one to view triggers
+pdmanager list-triggers --project proj_abc123
+
+# List triggers when in a workflow directory (with workflow.json)
+cd my-project/workflows/wf_abc123
+pdmanager list-triggers
+```
+
 ### Open a Pipedream Project
 
 You can open an existing project in several ways:

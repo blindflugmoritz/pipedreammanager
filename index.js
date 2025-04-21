@@ -11,6 +11,7 @@ const { analyzeLoginPage } = require('./commands/analyze-login-page');
 const { analyzeProjectsPage } = require('./commands/analyze-projects-page');
 const { createProjectAfterLogin } = require('./commands/create-project-after-login');
 const { createWorkflow } = require('./commands/create-workflow');
+const { listTriggers } = require('./commands/list-triggers');
 const { quickTest } = require('./commands/quick-test');
 
 program
@@ -94,5 +95,13 @@ program
   .option('--trigger-path <path>', 'Custom path for HTTP trigger (optional)')
   .option('--schedule <cron>', 'Cron expression for schedule trigger (optional)')
   .action(createWorkflow);
+  
+program
+  .command('list-triggers')
+  .description('List all triggers for a workflow')
+  .option('-w, --workflow <id>', 'Workflow ID')
+  .option('-p, --project <id>', 'Project ID (to list all workflows)')
+  .option('-k, --apiKey <key>', 'Pipedream API key (optional if in .env)')
+  .action(listTriggers);
 
 program.parse(process.argv);
