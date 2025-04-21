@@ -1,8 +1,11 @@
 const https = require('https');
-require('dotenv').config();
+const dotenv = require('dotenv');
 const fs = require('fs').promises;
 const path = require('path');
 const ini = require('ini');
+
+// Explicitly configure dotenv to look in the right place
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 // Helper function to make API requests
 async function makeApiRequest(method, endpoint, apiKey, data = null) {
@@ -73,7 +76,27 @@ async function listTriggers(options) {
     console.log('Fetching workflow triggers...');
     
     // Get API key from options or .env
-    const apiKey = options.apiKey || process.env.PIPEDREAM_API_KEY;
+    let apiKey = options.apiKey || process.env.PIPEDREAM_API_KEY;
+    
+    // If API key still not found, try to load from config.ini
+    if (!apiKey) {
+      try {
+        const configPath = path.join(process.cwd(), 'config.ini');
+        const exists = await fs.access(configPath).then(() => true).catch(() => false);
+        if (exists) {
+          const configContent = await fs.readFile(configPath, 'utf8');
+          const config = ini.parse(configContent);
+          
+          if (config.api && config.api.key) {
+            apiKey = config.api.key;
+            console.log('Using API key from config.ini');
+          }
+        }
+      } catch (error) {
+        // Silently continue if config.ini reading fails
+      }
+    }
+    
     if (!apiKey) {
       console.error('Error: API key is required. Provide via --apiKey option or set PIPEDREAM_API_KEY in .env file');
       process.exit(1);
@@ -251,7 +274,8 @@ async function listTriggers(options) {
       console.log('-'.repeat(50));
     });
     
-    return triggers;
+    // Make sure to exit the process after returning data
+    process.exit(0);
   } catch (error) {
     console.error('Error listing triggers:', error.message);
     process.exit(1);

@@ -283,7 +283,8 @@ async function createWorkflow(options) {
     
     console.log('-'.repeat(50) + '\n');
     
-    return { 
+    // Return data but also explicitly exit the process
+    const result = { 
       workflowId, 
       workflowName, 
       workflowUrl,
@@ -298,6 +299,9 @@ async function createWorkflow(options) {
         } : {})
       } : null
     };
+    
+    // Explicitly exit with success code
+    process.exit(0);
   } catch (error) {
     console.error('Error creating workflow:', error.message);
     process.exit(1);

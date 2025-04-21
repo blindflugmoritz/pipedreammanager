@@ -60,6 +60,8 @@ async function quickTest() {
     console.log('Test finished. Closing browser...');
     await browser.close();
     console.log('Browser closed successfully');
+    // Ensure the process exits
+    process.exit(0);
   }
 }
 
