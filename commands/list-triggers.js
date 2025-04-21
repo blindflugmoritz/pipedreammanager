@@ -107,16 +107,34 @@ async function listTriggers(options) {
     
     // If workflow ID not provided directly, try to read from local directory or options
     if (!workflowId) {
-      // If in a workflow directory, try to read from workflow.json
+      // Check if we're in a workflow directory by looking for workflow.json
       try {
         const workflowJsonPath = path.join(process.cwd(), 'workflow.json');
-        const workflowData = JSON.parse(await fs.readFile(workflowJsonPath, 'utf8'));
-        if (workflowData && workflowData.id) {
-          workflowId = workflowData.id;
-          console.log(`Found workflow ID in workflow.json: ${workflowId}`);
+        const exists = await fs.access(workflowJsonPath).then(() => true).catch(() => false);
+        
+        if (exists) {
+          const workflowContent = await fs.readFile(workflowJsonPath, 'utf8');
+          const workflowData = JSON.parse(workflowContent);
+          
+          if (workflowData && workflowData.id) {
+            workflowId = workflowData.id;
+            console.log(`Found workflow ID in workflow.json: ${workflowId}`);
+          }
         }
       } catch (error) {
-        // Not in a workflow directory, that's okay
+        console.log(`Note: Could not read workflow.json: ${error.message}`);
+      }
+      
+      // Try to detect if we're in a workflow subdirectory
+      if (!workflowId) {
+        const currentDir = process.cwd();
+        const dirName = path.basename(currentDir);
+        
+        // Check if the directory name matches a workflow ID pattern (may be specific to your naming)
+        if (dirName.startsWith('wf_') || dirName.match(/^[a-zA-Z0-9_-]+$/)) {
+          console.log(`Trying to use directory name as workflow ID: ${dirName}`);
+          workflowId = dirName;
+        }
       }
       
       // Get user details to find org ID before listing workflows
@@ -221,10 +239,44 @@ async function listTriggers(options) {
     
     // Fetch workflow details
     console.log(`Fetching details for workflow ${workflowId}...`);
-    const workflow = await makeApiRequest('GET', `/workflows/${workflowId}?org_id=${orgId}`, apiKey);
-    
-    if (!workflow || !workflow.data) {
-      console.error('Error: Failed to fetch workflow details');
+    let workflow;
+    try {
+      workflow = await makeApiRequest('GET', `/workflows/${workflowId}?org_id=${orgId}`, apiKey);
+      
+      if (!workflow || !workflow.data) {
+        console.error('Error: Failed to fetch workflow details - No data returned');
+        process.exit(1);
+      }
+    } catch (error) {
+      console.error(`Error fetching workflow details: ${error.message}`);
+      
+      // Check if this might be a project ID instead of a workflow ID
+      if (workflowId.startsWith('p_')) {
+        console.log('\nThe ID provided appears to be a project ID (starting with p_) rather than a workflow ID.');
+        console.log('Workflow IDs typically start with "wf_" or have a similar format.');
+        console.log('\nTrying to list workflows in this project instead...');
+        
+        try {
+          const workflows = await makeApiRequest('GET', `/projects/${workflowId}/workflows?org_id=${orgId}`, apiKey);
+          
+          if (workflows && workflows.data && workflows.data.length > 0) {
+            console.log('\nWorkflows in this project:');
+            workflows.data.forEach((workflow, index) => {
+              console.log(`${index + 1}. ${workflow.name} (${workflow.id})`);
+            });
+            
+            console.log('\nPlease use one of these workflow IDs with --workflow option.');
+            process.exit(0);
+          } else {
+            console.log('No workflows found in this project.');
+            process.exit(0);
+          }
+        } catch (projectError) {
+          console.error(`Error fetching project workflows: ${projectError.message}`);
+          process.exit(1);
+        }
+      }
+      
       process.exit(1);
     }
     
@@ -241,7 +293,7 @@ async function listTriggers(options) {
     
     if (triggers.length === 0) {
       console.log('No triggers found for this workflow.');
-      return;
+      process.exit(0);
     }
     
     console.log('\nTriggers:');
