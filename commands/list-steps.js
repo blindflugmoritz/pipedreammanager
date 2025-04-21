@@ -167,11 +167,28 @@ async function listSteps(options) {
     if (!workflowId) {
       workflowId = await getWorkflowIdFromLocal();
       
+      // Get user details to find org ID before listing workflows
+      let orgId = null;
+      try {
+        const userDetails = await makeApiRequest('GET', '/users/me', apiKey);
+        
+        if (userDetails && userDetails.data && userDetails.data.orgs && userDetails.data.orgs.length > 0) {
+          orgId = userDetails.data.orgs[0].id;
+          console.log(`Using workspace (org_id): ${orgId}`);
+        } else {
+          console.error('Error: No workspace found for the user');
+          process.exit(1);
+        }
+      } catch (error) {
+        console.error(`Error getting user details: ${error.message}`);
+        process.exit(1);
+      }
+      
       // If still no workflow ID and project ID provided, list all workflows and prompt user
       if (!workflowId && options.project) {
         console.log(`No workflow ID provided. Listing workflows in project ${options.project}...`);
         try {
-          const workflows = await makeApiRequest('GET', `/projects/${options.project}/workflows`, apiKey);
+          const workflows = await makeApiRequest('GET', `/projects/${options.project}/workflows?org_id=${orgId}`, apiKey);
           
           if (workflows && workflows.data && workflows.data.length > 0) {
             console.log('\nAvailable workflows:');
@@ -196,7 +213,7 @@ async function listSteps(options) {
         if (projectId) {
           console.log(`No workflow ID provided. Listing workflows in project ${projectId}...`);
           try {
-            const workflows = await makeApiRequest('GET', `/projects/${projectId}/workflows`, apiKey);
+            const workflows = await makeApiRequest('GET', `/projects/${projectId}/workflows?org_id=${orgId}`, apiKey);
             
             if (workflows && workflows.data && workflows.data.length > 0) {
               console.log('\nAvailable workflows:');
@@ -226,9 +243,33 @@ async function listSteps(options) {
       process.exit(1);
     }
     
+    // Get user details to find org ID
+    console.log('Fetching user details to determine workspace...');
+    let orgId = null;
+    try {
+      const userDetails = await makeApiRequest('GET', '/users/me', apiKey);
+      
+      if (!userDetails || !userDetails.data || !userDetails.data.id) {
+        console.error('Error: Failed to fetch user details');
+        process.exit(1);
+      }
+      
+      // Get the first organization (workspace) from the user's details
+      if (userDetails.data.orgs && userDetails.data.orgs.length > 0) {
+        orgId = userDetails.data.orgs[0].id;
+        console.log(`Using workspace (org_id): ${orgId}`);
+      } else {
+        console.error('Error: No workspace found for the user');
+        process.exit(1);
+      }
+    } catch (error) {
+      console.error(`Error getting user details: ${error.message}`);
+      process.exit(1);
+    }
+    
     // Fetch workflow details
     console.log(`Fetching details for workflow ${workflowId}...`);
-    const workflow = await makeApiRequest('GET', `/workflows/${workflowId}`, apiKey);
+    const workflow = await makeApiRequest('GET', `/workflows/${workflowId}?org_id=${orgId}`, apiKey);
     
     if (!workflow || !workflow.data) {
       console.error('Error: Failed to fetch workflow details');
