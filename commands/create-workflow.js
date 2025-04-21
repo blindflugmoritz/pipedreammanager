@@ -160,15 +160,16 @@ async function createWorkflow(options) {
       
       if (triggerType === 'http') {
         // HTTP webhook trigger
-        const triggerPath = options.triggerPath || generateRandomPath();
-        console.log(`Using HTTP path: ${triggerPath}`);
+        console.log(`Configuring HTTP webhook trigger`);
         
         workflowData.components.push({
-          type: 'trigger',
+          key: 'trigger',
+          type: 'source',
           app: 'http',
-          options: {
-            path: triggerPath,
-            method: 'any'
+          source: {
+            type: 'webhook',
+            name: `${workflowName} HTTP Webhook`,
+            key: 'http-webhook'  
           }
         });
       } else if (triggerType === 'schedule') {
@@ -181,9 +182,13 @@ async function createWorkflow(options) {
         console.log(`Using schedule: ${cronExpression}`);
         
         workflowData.components.push({
-          type: 'trigger',
+          key: 'trigger',
+          type: 'source',
           app: 'schedule',
-          options: {
+          source: {
+            type: 'cron',
+            name: `${workflowName} Schedule`,
+            key: 'schedule',
             cron: cronExpression
           }
         });
@@ -230,11 +235,11 @@ async function createWorkflow(options) {
       
       if (triggerType === 'http' && options.triggerPath) {
         metadata.trigger.path = options.triggerPath;
-        metadata.webhook_url = `https://pipedream.com/webhooks/${workflowId}/${options.triggerPath}`;
+        metadata.webhook_url = `https://webhook.pipedream.com/v1/sources/${workflowId}/events`;
       } else if (triggerType === 'http') {
         const path = generateRandomPath();
         metadata.trigger.path = path;
-        metadata.webhook_url = `https://pipedream.com/webhooks/${workflowId}/${path}`;
+        metadata.webhook_url = `https://webhook.pipedream.com/v1/sources/${workflowId}/events`;
       } else if (triggerType === 'schedule') {
         let schedule = options.schedule || process.env.DEFAULT_SCHEDULE || '0 0 * * *';
         schedule = schedule.replace(/"/g, '');
@@ -267,11 +272,8 @@ async function createWorkflow(options) {
       console.log(`   - Trigger type: ${triggerType}`);
       
       if (triggerType === 'http') {
-        const triggerPath = options.triggerPath || metadata.trigger?.path;
-        if (triggerPath) {
-          const webhookUrl = `https://pipedream.com/webhooks/${workflowId}/${triggerPath}`;
-          console.log(`   - Webhook URL: ${webhookUrl}`);
-        }
+        const webhookUrl = `https://webhook.pipedream.com/v1/sources/${workflowId}/events`;
+        console.log(`   - Webhook URL: ${webhookUrl}`);
       } else if (triggerType === 'schedule') {
         let schedule = options.schedule || process.env.DEFAULT_SCHEDULE || '0 0 * * *';
         schedule = schedule.replace(/"/g, '');
@@ -288,7 +290,8 @@ async function createWorkflow(options) {
       trigger: triggerType ? {
         type: triggerType,
         ...(triggerType === 'http' ? { 
-          path: options.triggerPath || metadata.trigger?.path 
+          path: options.triggerPath || metadata.trigger?.path,
+          webhook_url: `https://webhook.pipedream.com/v1/sources/${workflowId}/events`
         } : {}),
         ...(triggerType === 'schedule' ? { 
           schedule: options.schedule || process.env.DEFAULT_SCHEDULE?.replace(/"/g, '') || '0 0 * * *' 
