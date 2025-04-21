@@ -100,6 +100,25 @@ cd my-project/workflows/wf_abc123
 pdmanager list-triggers
 ```
 
+### List Workflow Steps
+
+List all steps in a workflow (triggers and actions):
+
+```bash
+# List steps for a specific workflow
+pdmanager list-steps --workflow wf_abc123
+
+# List all workflows in a project, then choose one to view steps
+pdmanager list-steps --project proj_abc123
+
+# List steps when in a workflow directory
+cd my-project/workflows/wf_abc123
+pdmanager list-steps
+
+# Show detailed component information
+pdmanager list-steps --workflow wf_abc123 --detailed
+```
+
 ### Open a Pipedream Project
 
 You can open an existing project in several ways:

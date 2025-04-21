@@ -12,6 +12,7 @@ const { analyzeProjectsPage } = require('./commands/analyze-projects-page');
 const { createProjectAfterLogin } = require('./commands/create-project-after-login');
 const { createWorkflow } = require('./commands/create-workflow');
 const { listTriggers } = require('./commands/list-triggers');
+const { listSteps } = require('./commands/list-steps');
 const { quickTest } = require('./commands/quick-test');
 
 program
@@ -103,5 +104,14 @@ program
   .option('-p, --project <id>', 'Project ID (to list all workflows)')
   .option('-k, --apiKey <key>', 'Pipedream API key (optional if in .env)')
   .action(listTriggers);
+
+program
+  .command('list-steps')
+  .description('List all steps in a workflow')
+  .option('-w, --workflow <id>', 'Workflow ID')
+  .option('-p, --project <id>', 'Project ID (to list all workflows)')
+  .option('-k, --apiKey <key>', 'Pipedream API key (optional if in .env)')
+  .option('-d, --detailed', 'Show detailed component information')
+  .action(listSteps);
 
 program.parse(process.argv);
